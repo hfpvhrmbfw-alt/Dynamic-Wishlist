@@ -1,0 +1,20 @@
+{
+  "id": "./",
+  "name": "Annas Wunschliste",
+  "short_name": "Wunschliste",
+  "description": "Wünsche, Sparziele und Geschenkideen. Die Daten bleiben auf dem Gerät.",
+  "lang": "de",
+  "dir": "ltr",
+  "display": "standalone",
+  "orientation": "any",
+  "start_url": "./",
+  "scope": "./",
+  "background_color": "#E3DAD3",
+  "theme_color": "#E3DAD3",
+  "categories": ["lifestyle", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
