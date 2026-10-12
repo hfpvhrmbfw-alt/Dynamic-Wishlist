@@ -6,10 +6,8 @@ const SHELL = [
   './', './index.html', './app.css', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png', './icons/favicon-32.png',
-  './fonts/ibm-plex-mono-latin-400-normal.woff2', './fonts/ibm-plex-mono-latin-500-normal.woff2', './fonts/ibm-plex-mono-latin-600-normal.woff2',
-  './fonts/ibm-plex-mono-cyrillic-500-normal.woff2', './fonts/ibm-plex-mono-cyrillic-600-normal.woff2',
-  './fonts/ibm-plex-sans-latin-400-normal.woff2', './fonts/ibm-plex-sans-latin-600-normal.woff2',
-  './fonts/source-serif-4-latin-opsz-normal.woff2'
+  './fonts/BricolageGrotesque-latin.woff2', './fonts/Nunito-latin.woff2', './fonts/Nunito-cyrillic.woff2',
+  './fonts/SpaceMono-latin.woff2', './fonts/SpaceMono-latin-700.woff2'
 ];
 
 self.addEventListener('install', e => {
