@@ -10,7 +10,7 @@ Alle Daten liegen auf dem Gerät (IndexedDB). **Deine Wünsche stehen nie im Rep
 | `index.html`, `app.css`, `app.js` | die App (alle Pfade relativ, läuft unter `/repo-name/`) |
 | `manifest.webmanifest`, `icons/` | Installierbarkeit |
 | `sw.js` | Service Worker: App offline, Hinweis „Neue Version verfügbar“ |
-| `fonts/` | IBM Plex Mono, IBM Plex Sans, Source Serif 4 als woff2 (SIL OFL, siehe `fonts/LICENSES.txt`) |
+| `fonts/` | Bricolage Grotesque, Nunito, Space Mono als woff2 (Stil Brause) (SIL OFL, siehe `fonts/LICENSES.txt`) |
 | `.github/workflows/pages.yml` | Deployment nach GitHub Pages bei Push auf `main` |
 
 ## Auf GitHub Pages veröffentlichen
