@@ -59,7 +59,9 @@ const ICONS = {
   upload: '<path d="M8 10.5v-8M5 5.5l3-3 3 3M3 13.5h10"/>',
   eye: '<path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/>',
   undo: '<path d="M4.5 6h5.5a3 3 0 010 6H6.5M4.5 6L7 3.5M4.5 6L7 8.5"/>',
-  x: '<path d="M4 4l8 8M12 4l-8 8"/>'
+  x: '<path d="M4 4l8 8M12 4l-8 8"/>',
+  list: '<rect x="3" y="2.5" width="10" height="11" rx="1"/><path d="M5.5 6h5M5.5 8.5h5M5.5 11h3"/>',
+  heart: '<path d="M8 13.5S2.5 10.2 2.5 6.2A2.8 2.8 0 018 5a2.8 2.8 0 015.5 1.2c0 4-5.5 7.3-5.5 7.3z"/>'
 };
 const ic = n => '<svg class="i" viewBox="0 0 16 16" aria-hidden="true">' + ICONS[n] + '</svg>';
 
@@ -206,7 +208,7 @@ function totals() {
 }
 
 /* ---------- UI state ---------- */
-const UI_DEF = { tab: 'list', filter: 'all', cat: '', sort: 'prio' };
+const UI_DEF = { page: 'wishes', tab: 'list', filter: 'all', cat: '', sort: 'prio' };
 let ui = Object.assign({}, UI_DEF, (() => { try { return JSON.parse(ls.get('wl-ui') || '{}'); } catch (e) { return {}; } })());
 const saveUi = () => ls.set('wl-ui', JSON.stringify(ui));
 /* Besitzerin ist man immer, außer die URL trägt einen Teilen-Link (#g=…). */
@@ -253,10 +255,15 @@ const runhead = (nav, owner = state.owner, upd = state.updated) => `<header clas
 const hero = (sub, extra = '', lede = '', owner = state.owner) => `<section class="hero"><h1>${esc(possessive(owner))} Wunschliste</h1><div class="subtitle cap">${sub.map(esc).join('<span class="sep">·</span>')}</div>${lede ? `<p class="lede">${lede}</p>` : ''}</section>${extra}<hr class="rule-heavy">`;
 const sec = (no, id, title, inner) => `<section class="section" id="${id}" aria-labelledby="h-${id}"><h2 class="label" id="h-${id}"><span class="no">№ ${pad(no)}</span> — ${esc(title)}</h2>${inner}</section>`;
 
+// Blätter statt einer langen Seite: unten wechselt die schwebende Porto-Leiste
+const PAGES = [{ id: 'wishes', name: 'Wünsche', icon: 'list' }, { id: 'money', name: 'Geld', icon: 'coin' }, { id: 'mood', name: 'Stimmung', icon: 'heart' }];
 function renderOwner() {
   const open = openWishes(), done = state.wishes.filter(w => w.done);
   const hasEx = state.wishes.some(w => w.example);
-  const nav = `<nav aria-label="Abschnitte"><a href="#kassensturz">Kassensturz</a><a href="#stimmung">Stimmung</a><a href="#wuensche">Wünsche</a><a href="#erreicht">Ziele</a></nav>`;
+  if (!PAGES.some(p => p.id === ui.page)) ui.page = 'wishes';
+  if (ui.tab !== 'done') ui.tab = 'list';
+  const pg = ui.page;
+  const nav = `<nav aria-label="Blätter">${PAGES.map(p => `<button type="button" data-a="page" data-v="${p.id}"${pg === p.id ? ' aria-current="page"' : ''}>${p.name}</button>`).join('')}</nav>`;
   const actions = `<div class="actions">
       <span class="status cap" id="status" data-s="${statusKey}">${statusText()}</span>
       <button class="btn primary" id="b-new" data-a="new">${ic('plus')}Neuer Wunsch</button>
@@ -264,23 +271,23 @@ function renderOwner() {
       <button class="btn" id="b-export" data-a="export">${ic('note')}Obsidian</button>
       <button class="btn icon" id="b-settings" data-a="settings" aria-label="Einstellungen" title="Einstellungen">${ic('sliders')}</button>
     </div>`;
-  const welcome = ls.get('wl-welcome') ? '' : `<section class="welcome" aria-label="So funktioniert es"><h2>Willkommen! So geht es los</h2><ol><li><div><b>Wunsch eintragen</b><span>Name, Preis und ein Shop-Link genügen. Wollen und Brauchen bestimmen die Reihenfolge.</span></div></li><li><div><b>Sparrate festlegen</b><span>Die App rechnet aus, ab wann du dir den Wunsch leisten kannst.</span></div></li><li><div><b>Geschenkideen teilen</b><span>Schalte Wünsche als Geschenkidee frei und schicke den Link. Notizen und Sparstände bleiben privat.</span></div></li></ol><button class="btn icon ghost x" data-a="welcome-x" aria-label="Hinweis schließen">${ic('x')}</button></section>`;
+  const welcome = ls.get('wl-welcome') || pg !== 'wishes' ? '' : `<section class="welcome" aria-label="So funktioniert es"><h2>Willkommen! So geht es los</h2><ol><li><div><b>Wunsch eintragen</b><span>Name, Preis und ein Shop-Link genügen. Wollen und Brauchen bestimmen die Reihenfolge.</span></div></li><li><div><b>Sparrate festlegen</b><span>Die App rechnet aus, ab wann du dir den Wunsch leisten kannst.</span></div></li><li><div><b>Geschenkideen teilen</b><span>Schalte Wünsche als Geschenkidee frei und schicke den Link. Notizen und Sparstände bleiben privat.</span></div></li></ol><button class="btn icon ghost x" data-a="welcome-x" aria-label="Hinweis schließen">${ic('x')}</button></section>`;
   const notes = welcome + updateNote()
-    + (backupDue() ? `<div class="note warn bar" role="status"><span class="cap">Sicherung</span><p>${lastBackup ? 'Deine letzte Sicherung ist vom ' + fmtDate(lastBackup) + ', also älter als 30 Tage.' : 'Du hast noch keine Sicherung gespeichert.'} Das Handy kann Website-Daten löschen, eine Sicherung schützt deine Liste.</p><button class="btn small" data-a="dl-json">${ic('download')}Sicherung speichern</button></div>` : '')
+    + (backupDue() && pg === 'wishes' ? `<div class="note warn bar" role="status"><span class="cap">Sicherung</span><p>${lastBackup ? 'Deine letzte Sicherung ist vom ' + fmtDate(lastBackup) + ', also älter als 30 Tage.' : 'Du hast noch keine Sicherung gespeichert.'} Das Handy kann Website-Daten löschen, eine Sicherung schützt deine Liste.</p><button class="btn small" data-a="dl-json">${ic('download')}Sicherung speichern</button></div>` : '')
     + (statusKey === 'error' ? `<div class="note err bar" role="alert"><span class="cap">Fehler</span><p>${storageFail ? 'Speichern auf diesem Gerät ist nicht möglich, zum Beispiel im privaten Modus. Deine Änderungen gehen beim Schließen verloren.' : 'Die letzte Änderung wurde nicht gespeichert.'}</p><button class="btn small" data-a="retry">Erneut speichern</button></div>` : '')
     + (hasEx ? `<div class="note bar"><span class="cap">Beispiele</span><p>Die Einträge mit <span class="tag acc">Beispiel</span> zeigen, wie die Liste funktioniert. Bearbeitest du einen, gehört er dir.</p><button class="btn small" id="b-exrm" data-a="examples-remove">${ic('trash')}Beispiele entfernen</button></div>` : '');
   const panel = `<div class="tabs" role="tablist" aria-label="Ansicht">
-        ${tabBtn('list', 'Liste', open.length)}${tabBtn('matrix', 'Wollen & Brauchen')}${tabBtn('done', 'Erfüllt', done.length)}
+        ${tabBtn('list', 'Liste', open.length)}${tabBtn('done', 'Erfüllt', done.length)}
       </div>
-      <div role="tabpanel" id="panel" aria-labelledby="tab-${ui.tab}">${ui.tab === 'matrix' ? renderMatrix(open) : ui.tab === 'done' ? renderDone(done) : renderList(open)}</div>`;
+      <div role="tabpanel" id="panel" aria-labelledby="tab-${ui.tab}">${ui.tab === 'done' ? renderDone(done) : renderList(open)}</div>`;
   return `${runhead(nav)}<main class="wrap">
-  ${hero(['Wünsche', 'Sparziele', 'Geschenkideen'], actions)}
+  ${hero(pg === 'money' ? ['Geld', 'Sparziele', 'Kassensturz'] : pg === 'mood' ? ['Stimmung', 'Wollen', 'Brauchen'] : ['Wünsche', 'Sparziele', 'Geschenkideen'], actions)}
   ${notes}
-  ${sec(1, 'kassensturz', 'Kassensturz', renderReceipt())}
-  ${sec(2, 'stimmung', 'Stimmung', renderMood())}
-  ${sec(3, 'wuensche', 'Wünsche', panel)}
-  ${sec(4, 'erreicht', 'Als Nächstes erreicht', renderNext(open))}
-</main><button class="fab" data-a="new" aria-label="Neuer Wunsch">${ic('plus')}</button>`;
+  ${pg === 'money' ? sec(1, 'kassensturz', 'Kassensturz', renderReceipt()) + sec(2, 'erreicht', 'Als Nächstes erreicht', renderNext(open))
+    : pg === 'mood' ? sec(1, 'stimmung', 'Herz oder Kopf', renderMood()) + sec(2, 'matrix', 'Wollen & Brauchen', renderMatrix(open))
+    : sec(1, 'wuensche', 'Wünsche', panel)}
+</main>
+<nav class="dock" aria-label="Blätter"><div class="pillbar">${PAGES.map(p => `<button type="button" data-a="page" data-v="${p.id}" aria-pressed="${pg === p.id}">${ic(p.icon)}<span${pg === p.id ? '' : ' class="sr"'}>${p.name}</span></button>`).join('')}</div><button class="fab" data-a="new" aria-label="Neuer Wunsch">${ic('plus')}</button></nav>`;
 }
 const BACKUP_DAYS = 30;
 function backupDue() {
@@ -1034,6 +1041,7 @@ document.addEventListener('click', e => {
     case 'close': closeDialog(); break;
     case 'retry': retried = false; dirty = true; setStatus('pending'); render(); scheduleSave(100); break;
     case 'tab': ui.tab = t.dataset.v; saveUi(); animNext = true; render(); break;
+    case 'page': ui.page = t.dataset.v; saveUi(); animNext = true; render(); window.scrollTo(0, 0); break;
     case 'filter': ui.filter = t.dataset.v; saveUi(); render(); break;
     case 'gift': { const w = findWish(id); if (w) { w.gift = !w.gift; commit(); toast(w.gift ? 'Für andere sichtbar' : 'Nur noch für dich sichtbar'); } break; }
     case 'preview-on': sharePreview(); break;
