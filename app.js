@@ -63,6 +63,36 @@ const ICONS = {
 };
 const ic = n => '<svg class="i" viewBox="0 0 16 16" aria-hidden="true">' + ICONS[n] + '</svg>';
 
+
+/* ---------- Castra Porto: Poststempel und Markenmotive (aus dist/js/porto.js, gekürzt) ---------- */
+let pmUid = 0;
+function postmark({ top = 'ERFÜLLT', bottom = 'WUNSCHLISTE', date = '', year = '', cls = '' } = {}) {
+  const id = 'pm' + (++pmUid), wave = y => `M92 ${y} q8 -6 16 0 t16 0 t16 0 t16 0 t16 0 t16 0`;
+  return `<svg class="postmark ${cls}" viewBox="0 0 190 104" aria-hidden="true"><defs><path id="${id}t" d="M14 52 a38 38 0 0 1 76 0"/><path id="${id}b" d="M8 52 a44 44 0 0 0 88 0"/>`
+    + `<filter id="${id}f" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="${pmUid * 7}"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -.55 1.2"/><feComposite in="SourceGraphic" operator="in"/></filter></defs>`
+    + `<g filter="url(#${id}f)" fill="none" stroke="currentColor"><circle cx="52" cy="52" r="49" stroke-width="3"/><circle cx="52" cy="52" r="45.5" stroke-width="1.1"/><circle cx="52" cy="52" r="29" stroke-width="1.8"/>`
+    + [34, 43, 52, 61, 70].map(y => `<path d="${wave(y)}" stroke-width="2"/>`).join('')
+    + `<g stroke="none" fill="currentColor" font-family="IBM Plex Mono, monospace" font-weight="600" text-anchor="middle"><text font-size="10.5" letter-spacing="1.6"><textPath href="#${id}t" startOffset="50%">${esc(top)}</textPath></text>`
+    + (bottom ? `<text font-size="8.5" letter-spacing="1.4"><textPath href="#${id}b" startOffset="50%">${esc(bottom)}</textPath></text>` : '')
+    + `<text x="52" y="${year ? 51 : 56}" font-size="12">${esc(date)}</text>${year ? `<text x="52" y="64" font-size="10">${esc(year)}</text>` : ''}</g></g></svg>`;
+}
+const pmDate = d => { const [y, m, dd] = (d || TODAY()).split('-'); return { date: dd + '.' + m + '.', year: y }; };
+// Motive für Marken ohne Bild: wenige flache Farben wie bei alten Briefmarken
+const MOTIFS = {
+  streifen: () => '<rect width="100" height="150" fill="var(--paper)"/>' + ['var(--senf)', 'var(--accent)', 'var(--rose)', 'var(--paper)', 'var(--himmel)', 'var(--tanne)'].map((f, i) => `<path d="M-10 ${40 + i * 16} L35 ${-5 + i * 16} L55 ${15 + i * 16} L110 ${-40 + i * 16} V${-24 + i * 16} L55 ${31 + i * 16} L35 ${11 + i * 16} L-10 ${56 + i * 16}Z" fill="${f}"/>`).join(''),
+  welle: () => '<rect width="100" height="150" fill="var(--himmel)"/><circle cx="68" cy="42" r="17" fill="var(--paper)"/>' + ['var(--tanne)', 'var(--paper)', 'var(--tanne)', 'var(--senf)'].map((f, i) => `<path d="M-10 ${86 + i * 16} q15 -14 30 0 t30 0 t30 0 t30 0 V160 H-10Z" fill="${f}"/>`).join(''),
+  sonne: () => '<rect width="100" height="150" fill="var(--senf)"/>' + Array.from({ length: 12 }, (_, i) => `<path d="M50 92 L${(50 + 140 * Math.cos(i * Math.PI / 6)).toFixed(1)} ${(92 + 140 * Math.sin(i * Math.PI / 6)).toFixed(1)} L${(50 + 140 * Math.cos(i * Math.PI / 6 + .26)).toFixed(1)} ${(92 + 140 * Math.sin(i * Math.PI / 6 + .26)).toFixed(1)}Z" fill="var(--paper)" opacity=".55"/>`).join('') + '<circle cx="50" cy="92" r="24" fill="var(--accent)"/><rect y="118" width="100" height="32" fill="var(--tanne)"/>',
+  raute: () => { let o = '<rect width="100" height="150" fill="var(--tanne)"/>'; const c = ['var(--accent)', 'var(--senf)', 'var(--paper)']; for (let y = 0; y < 6; y++) for (let x = 0; x < 4; x++) { const cx = 12.5 + x * 25, cy = 12.5 + y * 25; o += `<path d="M${cx} ${cy - 11} L${cx + 11} ${cy} L${cx} ${cy + 11} L${cx - 11} ${cy}Z" fill="${c[(x + y) % 3]}"/><circle cx="${cx}" cy="${cy}" r="3" fill="var(--tanne)"/>`; } return o; },
+  planet: () => { let st = ''; for (let i = 0; i < 26; i++) st += `<circle cx="${(i * 37) % 100}" cy="${(i * 53) % 95}" r="${i % 3 ? .7 : 1.1}" fill="var(--himmel)"/>`; return `<rect width="100" height="150" fill="#1C1A16"/>${st}<circle cx="78" cy="22" r="9" fill="var(--senf)"/><circle cx="58" cy="150" r="62" fill="var(--accent)"/><path d="M-5 60 L48 96 L40 108Z" fill="var(--paper)"/>`; }
+};
+const motifCache = new Map();
+function motif(key) {
+  const names = Object.keys(MOTIFS); let h = 0; for (const ch of String(key)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const n = names[h % names.length];
+  if (!motifCache.has(n)) motifCache.set(n, MOTIFS[n]());
+  return `<svg class="motif" viewBox="0 0 100 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${motifCache.get(n)}</svg>`;
+}
+
 /* ---------- State ---------- */
 const THEMES = [{ id: '', name: 'Wie das Gerät' }, { id: 'light', name: 'Hell' }, { id: 'dark', name: 'Dunkel' }];
 let themeMem = null;
@@ -194,12 +224,25 @@ let animNext = true;       // Einblend-Animation nur beim Öffnen und beim Wechs
 let enterTimer = 0;
 let query = '';            // Suche in der Liste, nur für diese Sitzung
 
+/* Beträge hochzählen (Castra Porto: countTo), nur beim Öffnen */
+function countUp(els) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  els.forEach(el => {
+    const to = +el.dataset.n; if (!(to > 0)) return;
+    const t0 = performance.now(), ms = 900;
+    (function step(t) { const k = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - k, 3); el.textContent = eur(k < 1 ? Math.round(to * e) : to); if (k < 1 && el.isConnected) requestAnimationFrame(step); })(t0);
+  });
+}
+
 /* ---------- Rendering ---------- */
 function render() {
   const fid = document.activeElement && document.activeElement.id;
   const app = $('#app');
   app.innerHTML = (mode === 'owner' && !preview) ? renderOwner() : renderViewer();
-  if (animNext) { animNext = false; app.classList.add('enter'); clearTimeout(enterTimer); enterTimer = setTimeout(() => app.classList.remove('enter'), 1800); }
+  if (animNext) {
+    animNext = false; app.classList.add('enter'); clearTimeout(enterTimer); enterTimer = setTimeout(() => app.classList.remove('enter'), 1800);
+    countUp(app.querySelectorAll('.kpi .v[data-n]'));
+  }
   const ttl = mode === 'viewer' || preview ? (viewData ? viewData.o : state.owner) : state.owner;
   document.title = possessive(ttl) + ' Wunschliste';
   if (!$('#dlg').open) applyTheme(getTheme());
@@ -287,8 +330,9 @@ function renderList(open) {
 const segBtn = (k, l) => `<button id="seg-${k}" data-a="filter" data-v="${k}" aria-pressed="${ui.filter === k}">${l}</button>`;
 function etaKey(w) { const e = eta(w); return e.reached ? '0' : e.date ? '1' + e.date : e.noRate ? '8' : '9'; }
 
-function thumb(w, cls = 'thumb') {
-  return `<div class="${cls}" aria-hidden="true">${w.image ? `<img src="${esc(w.image)}" alt="">` : esc((w.name[0] || '?').toUpperCase())}</div>`;
+// Vorschaubild als Briefmarke (Kammzähnung), darüber optional ein Poststempel
+function thumb(w, pm = '') {
+  return `<div class="stampbox" aria-hidden="true"><div class="thumb">${w.image ? `<img src="${esc(w.image)}" alt="">` : motif(w.id || w.name)}</div>${pm}</div>`;
 }
 function shopLinks(w) {
   if (!w.shops.length) return '';
@@ -317,7 +361,7 @@ function wishCard(w, rank, i = 0) {
   const rk = ui.sort === 'prio' && rank ? `<span class="tag inv" title="Rang bei aktueller Stimmung">№ ${rank}</span>` : '';
   const meta = rk + (w.category ? `<span class="tag">${esc(w.category)}</span>` : '') + (w.variant ? `<span>${esc(w.variant)}</span>` : '') + (w.example ? '<span class="tag acc">Beispiel</span>' : '');
   return `<article class="wish" data-id="${esc(w.id)}" style="--i:${Math.min(i, 8)}">
-    ${thumb(w)}
+    ${thumb(w, eta(w).reached ? postmark(Object.assign({ top: 'GESPART', cls: 'show' }, pmDate())) : '')}
     <div class="w-body">
       <div class="w-top"><h3 class="w-name">${esc(w.name)}</h3><div class="w-price">${p ? eur(p) : '<span class="muted" style="font-size:14px;font-weight:400;font-family:var(--sans)">Preis offen</span>'}</div></div>
       ${meta ? `<div class="w-meta">${meta}</div>` : ''}
@@ -339,13 +383,13 @@ function wishCard(w, rank, i = 0) {
 function renderReceipt() {
   const t = totals();
   const tr = (l, v, cls = '') => `<tr class="${cls}"><td>${l}</td><td class="num">${v}</td></tr>`;
-  const kpi = (l, v, cls = '') => `<div class="kpi"><div class="cap muted">${l}</div><div class="v ${cls}">${v}</div></div>`;
+  const kpi = (l, v, cls = '', n = null) => `<div class="kpi"><div class="cap muted">${l}</div><div class="v ${cls}"${n != null ? ` data-n="${n}"` : ''}>${v}</div></div>`;
   let budgetRows = '';
   if (state.budget > 0) {
     const diff = state.budget - t.rates;
     budgetRows = tr('Sparbudget pro Monat', eur(state.budget)) + (diff >= 0 ? tr('Frei im Budget', eur(diff)) : tr('Über Budget <span class="tag acc">Achtung</span>', eur(-diff)));
   }
-  return `<div class="grid kpis">${kpi('Offene Wünsche', t.n)}${kpi('Gesamtwert', eur(t.total), 'acc')}${kpi('Schon gespart', eur(t.sav))}${kpi('Noch zu sparen', eur(t.rest))}</div>
+  return `<div class="grid kpis">${kpi('Offene Wünsche', t.n)}${kpi('Gesamtwert', eur(t.total), 'acc', t.total)}${kpi('Schon gespart', eur(t.sav), '', t.sav)}${kpi('Noch zu sparen', eur(t.rest), '', t.rest)}</div>
   <div class="table-scroll"><table class="data"><caption class="sr">Kassensturz</caption>
     <thead><tr><th scope="col">Posten</th><th scope="col" class="num">Betrag</th></tr></thead>
     <tbody>${tr('Geschenkideen', eur(t.gift), 'sub')}${tr('Nur für mich', eur(t.mine), 'sub')}${tr('Sparraten pro Monat', eur(t.rates))}${budgetRows}${tr('Alles erreicht', t.last ? fmtMonth(t.last) : '–', 'sum')}</tbody>
@@ -424,8 +468,8 @@ function renderDone(done) {
   const sum = done.reduce((a, w) => a + priceOf(w), 0);
   done = done.slice().sort((a, b) => b.done.date.localeCompare(a.done.date));
   return `<p class="note-line" style="margin-bottom:12px">${done.length} ${done.length === 1 ? 'Wunsch' : 'Wünsche'} erfüllt, zusammen ${eur(sum)}.</p>
-  <div class="list">${done.map(w => `<div class="done-row">
-    ${thumb(w)}
+  <div class="list">${done.map((w, i) => `<div class="done-row" style="--i:${Math.min(i, 8)}">
+    ${thumb(w, postmark(Object.assign({ top: w.done.how === 'geschenkt' ? 'GESCHENKT' : 'ERFÜLLT', cls: 'show' }, pmDate(w.done.date))))}
     <div><h3>${esc(w.name)}</h3><p>${w.done.how === 'geschenkt' ? 'Geschenkt bekommen' + (w.done.from ? ' von ' + esc(w.done.from) : '') : 'Selbst gekauft'} am ${fmtDate(w.done.date)}${priceOf(w) ? ' · ' + eur(priceOf(w)) : ''}</p></div>
     <div class="acts">${pendingDelete === w.id
       ? `<span class="confirm">Endgültig löschen? <button class="btn small danger solid" data-a="delete" data-id="${esc(w.id)}">Löschen</button><button class="btn small" data-a="delete-cancel">Abbrechen</button></span>`
@@ -434,12 +478,14 @@ function renderDone(done) {
 }
 
 /* "Schon besorgt": nur auf dem Gerät der Beschenkten, getrennt je Link-Besitzer */
+let freshGot = '';
 const gotKey = () => 'wl-got-' + (viewData ? viewData.o : '');
 function gotList() { try { const a = JSON.parse(ls.get(gotKey()) || '[]'); return Array.isArray(a) ? a.filter(x => typeof x === 'string') : []; } catch (e) { return []; } }
 function toggleGot(k) {
   if (!k) return;
   const a = gotList(), i = a.indexOf(k);
   if (i >= 0) a.splice(i, 1); else a.push(k);
+  freshGot = i >= 0 ? '' : k;
   ls.set(gotKey(), JSON.stringify(a)); const y = window.scrollY; render(); window.scrollTo(0, y);
   toast(i >= 0 ? 'Markierung entfernt' : 'Gemerkt, nur auf diesem Gerät');
 }
@@ -458,7 +504,8 @@ function renderViewer() {
       const p = w.p;
       const gk = w.name + '|' + w.variant, isGot = gotSet.includes(gk);
       return `<article class="gcard${isGot ? ' got' : ''}">
-        <div class="gimg">${w.image ? `<img src="${esc(w.image)}" alt="">` : esc((w.name[0] || '?').toUpperCase())}${w.top ? '<span class="tag inv">Top-Wunsch</span>' : ''}</div>
+        ${isGot ? postmark(Object.assign({ top: 'BESORGT', bottom: 'GESCHENK', cls: 'show' + (gk === freshGot ? ' fresh' : '') }, pmDate())) : ''}
+        <div class="gimg">${w.image ? `<img src="${esc(w.image)}" alt="">` : motif(w.name)}${w.top ? '<span class="tag inv">Top-Wunsch</span>' : ''}</div>
         <div class="gbody">
           <h3>${esc(w.name)}</h3>
           ${w.variant ? `<p class="v">${esc(w.variant)}</p>` : ''}
