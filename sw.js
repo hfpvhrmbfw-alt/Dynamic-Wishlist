@@ -6,7 +6,7 @@ const SHELL = [
   './', './index.html', './app.css', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png', './icons/favicon-32.png',
-  './fonts/BricolageGrotesque-latin.woff2', './fonts/Nunito-latin.woff2', './fonts/Nunito-cyrillic.woff2',
+  './fonts/SourceSerif4-latin.woff2', './fonts/Nunito-latin.woff2', './fonts/Nunito-cyrillic.woff2',
   './fonts/SpaceMono-latin.woff2', './fonts/SpaceMono-latin-700.woff2'
 ];
 

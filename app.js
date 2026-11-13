@@ -190,12 +190,16 @@ let statusKey = 'saved';
 let pendingDelete = null;
 let lastBackup = '';
 let updateReg = null;
+let animNext = true;       // Einblend-Animation nur beim Öffnen und beim Wechsel von Tab/Ansicht
+let enterTimer = 0;
+let query = '';            // Suche in der Liste, nur für diese Sitzung
 
 /* ---------- Rendering ---------- */
 function render() {
   const fid = document.activeElement && document.activeElement.id;
   const app = $('#app');
   app.innerHTML = (mode === 'owner' && !preview) ? renderOwner() : renderViewer();
+  if (animNext) { animNext = false; app.classList.add('enter'); clearTimeout(enterTimer); enterTimer = setTimeout(() => app.classList.remove('enter'), 1800); }
   const ttl = mode === 'viewer' || preview ? (viewData ? viewData.o : state.owner) : state.owner;
   document.title = possessive(ttl) + ' Wunschliste';
   if (!$('#dlg').open) applyTheme(getTheme());
@@ -217,7 +221,8 @@ function renderOwner() {
       <button class="btn" id="b-export" data-a="export">${ic('note')}Obsidian</button>
       <button class="btn icon" id="b-settings" data-a="settings" aria-label="Einstellungen" title="Einstellungen">${ic('sliders')}</button>
     </div>`;
-  const notes = updateNote()
+  const welcome = ls.get('wl-welcome') ? '' : `<section class="welcome" aria-label="So funktioniert es"><h2>Willkommen! So geht es los</h2><ol><li><div><b>Wunsch eintragen</b><span>Name, Preis und ein Shop-Link genügen. Wollen und Brauchen bestimmen die Reihenfolge.</span></div></li><li><div><b>Sparrate festlegen</b><span>Die App rechnet aus, ab wann du dir den Wunsch leisten kannst.</span></div></li><li><div><b>Geschenkideen teilen</b><span>Schalte Wünsche als Geschenkidee frei und schicke den Link. Notizen und Sparstände bleiben privat.</span></div></li></ol><button class="btn icon ghost x" data-a="welcome-x" aria-label="Hinweis schließen">${ic('x')}</button></section>`;
+  const notes = welcome + updateNote()
     + (backupDue() ? `<div class="note warn bar" role="status"><span class="cap">Sicherung</span><p>${lastBackup ? 'Deine letzte Sicherung ist vom ' + fmtDate(lastBackup) + ', also älter als 30 Tage.' : 'Du hast noch keine Sicherung gespeichert.'} Das Handy kann Website-Daten löschen, eine Sicherung schützt deine Liste.</p><button class="btn small" data-a="dl-json">${ic('download')}Sicherung speichern</button></div>` : '')
     + (statusKey === 'error' ? `<div class="note err bar" role="alert"><span class="cap">Fehler</span><p>${storageFail ? 'Speichern auf diesem Gerät ist nicht möglich, zum Beispiel im privaten Modus. Deine Änderungen gehen beim Schließen verloren.' : 'Die letzte Änderung wurde nicht gespeichert.'}</p><button class="btn small" data-a="retry">Erneut speichern</button></div>` : '')
     + (hasEx ? `<div class="note bar"><span class="cap">Beispiele</span><p>Die Einträge mit <span class="tag acc">Beispiel</span> zeigen, wie die Liste funktioniert. Bearbeitest du einen, gehört er dir.</p><button class="btn small" id="b-exrm" data-a="examples-remove">${ic('trash')}Beispiele entfernen</button></div>` : '');
@@ -232,7 +237,7 @@ function renderOwner() {
   ${sec(2, 'stimmung', 'Stimmung', renderMood())}
   ${sec(3, 'wuensche', 'Wünsche', panel)}
   ${sec(4, 'erreicht', 'Als Nächstes erreicht', renderNext(open))}
-</main>`;
+</main><button class="fab" data-a="new" aria-label="Neuer Wunsch">${ic('plus')}</button>`;
 }
 const BACKUP_DAYS = 30;
 function backupDue() {
@@ -254,7 +259,8 @@ function setStatus(k) { statusKey = k; const el = $('#status'); if (el) { el.dat
 function renderList(open) {
   const cats = [...new Set(open.map(w => w.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
   if (ui.cat && !cats.includes(ui.cat)) ui.cat = '';
-  let items = open.filter(w => ui.filter === 'all' || (ui.filter === 'gift' ? w.gift : !w.gift)).filter(w => !ui.cat || w.category === ui.cat);
+  const q = query.trim().toLowerCase();
+  let items = open.filter(w => !q || [w.name, w.variant, w.note, w.category, ...w.shops.map(s => s.label)].some(x => (x || '').toLowerCase().includes(q))).filter(w => ui.filter === 'all' || (ui.filter === 'gift' ? w.gift : !w.gift)).filter(w => !ui.cat || w.category === ui.cat);
   const rankMap = new Map(open.slice().sort(byPrio).map((w, i) => [w.id, i + 1]));
   const sorters = {
     prio: byPrio,
@@ -268,7 +274,7 @@ function renderList(open) {
     <div class="seg" role="group" aria-label="Filter">
       ${segBtn('all', 'Alle')}${segBtn('mine', 'Nur für mich')}${segBtn('gift', 'Geschenkideen')}
     </div>
-    <span class="grow"></span>
+    <input type="search" class="search" id="f-q" placeholder="Suchen …" aria-label="Wünsche durchsuchen" value="${esc(query)}">
     ${cats.length ? `<select class="sel" id="f-catsel" aria-label="Kategorie"><option value="">Alle Kategorien</option>${cats.map(c => `<option ${c === ui.cat ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>` : ''}
     <select class="sel" id="f-sort" aria-label="Sortierung">
       ${[['prio', 'Nach Priorität'], ['eta', 'Bald erreicht zuerst'], ['price-asc', 'Preis aufsteigend'], ['price-desc', 'Preis absteigend'], ['new', 'Neueste zuerst']].map(([v, l]) => `<option value="${v}" ${ui.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
@@ -276,7 +282,7 @@ function renderList(open) {
   </div>`;
   if (!open.length) return toolbar + `<div class="empty"><p>Noch keine Wünsche auf der Liste.</p><button class="btn primary" data-a="new">${ic('plus')}Ersten Wunsch eintragen</button></div>`;
   if (!items.length) return toolbar + `<div class="empty"><p>Kein Wunsch passt zu diesem Filter.</p></div>`;
-  return toolbar + `<div class="list">${items.map(w => wishCard(w, rankMap.get(w.id))).join('')}</div>`;
+  return toolbar + `<div class="list">${items.map((w, i) => wishCard(w, rankMap.get(w.id), i)).join('')}</div>`;
 }
 const segBtn = (k, l) => `<button id="seg-${k}" data-a="filter" data-v="${k}" aria-pressed="${ui.filter === k}">${l}</button>`;
 function etaKey(w) { const e = eta(w); return e.reached ? '0' : e.date ? '1' + e.date : e.noRate ? '8' : '9'; }
@@ -306,11 +312,11 @@ function saveLine(w) {
   return `<div class="save"><p class="muted">Kein Sparplan${w.gift ? ' · vielleicht schenkt es dir jemand' : ''}</p></div>`;
 }
 
-function wishCard(w, rank) {
+function wishCard(w, rank, i = 0) {
   const p = priceOf(w);
   const rk = ui.sort === 'prio' && rank ? `<span class="tag inv" title="Rang bei aktueller Stimmung">№ ${rank}</span>` : '';
   const meta = rk + (w.category ? `<span class="tag">${esc(w.category)}</span>` : '') + (w.variant ? `<span>${esc(w.variant)}</span>` : '') + (w.example ? '<span class="tag acc">Beispiel</span>' : '');
-  return `<article class="wish" data-id="${esc(w.id)}">
+  return `<article class="wish" data-id="${esc(w.id)}" style="--i:${Math.min(i, 8)}">
     ${thumb(w)}
     <div class="w-body">
       <div class="w-top"><h3 class="w-name">${esc(w.name)}</h3><div class="w-price">${p ? eur(p) : '<span class="muted" style="font-size:14px;font-weight:400;font-family:var(--sans)">Preis offen</span>'}</div></div>
@@ -427,24 +433,38 @@ function renderDone(done) {
   </div>`).join('')}</div>`;
 }
 
+/* "Schon besorgt": nur auf dem Gerät der Beschenkten, getrennt je Link-Besitzer */
+const gotKey = () => 'wl-got-' + (viewData ? viewData.o : '');
+function gotList() { try { const a = JSON.parse(ls.get(gotKey()) || '[]'); return Array.isArray(a) ? a.filter(x => typeof x === 'string') : []; } catch (e) { return []; } }
+function toggleGot(k) {
+  if (!k) return;
+  const a = gotList(), i = a.indexOf(k);
+  if (i >= 0) a.splice(i, 1); else a.push(k);
+  ls.set(gotKey(), JSON.stringify(a)); const y = window.scrollY; render(); window.scrollTo(0, y);
+  toast(i >= 0 ? 'Markierung entfernt' : 'Gemerkt, nur auf diesem Gerät');
+}
+
 /* Viewer (gift) page */
 function giftItems() { return openWishes().filter(w => w.gift).sort(byPrio); }
 function renderViewer() {
   if (viewError) return `${runhead('', 'Geschenkideen')}<main class="wrap"><section class="hero"><h1>Wunschliste</h1><div class="subtitle cap">Geschenkideen</div></section><hr class="rule-heavy"><div class="note err"><span class="cap">Fehler</span>${esc(viewError)}</div></main>`;
   const V = viewData || { o: state.owner, u: state.updated, i: [] };
   const owner = V.o;
+  const gotSet = mode === 'viewer' ? gotList() : [];
   const items = V.i.map(x => ({ name: x.n, variant: x.v || '', p: x.p || 0, image: x.m || '', top: !!x.t, shops: x.s }));
   const lede = `Falls du ${esc(owner)} eine Freude machen möchtest: Darüber würde ${esc(owner)} sich freuen.`;
   const prev = preview && mode === 'owner' ? `<div class="note info bar"><span class="cap">Vorschau</span><p>So sehen andere deine Liste. Notizen, Bewertungen und Sparstände bleiben verborgen.</p><button class="btn small" data-a="preview-off">${ic('undo')}Zurück zur Liste</button></div>` : '';
   const grid = items.length ? `<div class="gift-grid">${items.map(w => {
       const p = w.p;
-      return `<article class="gcard">
+      const gk = w.name + '|' + w.variant, isGot = gotSet.includes(gk);
+      return `<article class="gcard${isGot ? ' got' : ''}">
         <div class="gimg">${w.image ? `<img src="${esc(w.image)}" alt="">` : esc((w.name[0] || '?').toUpperCase())}${w.top ? '<span class="tag inv">Top-Wunsch</span>' : ''}</div>
         <div class="gbody">
           <h3>${esc(w.name)}</h3>
           ${w.variant ? `<p class="v">${esc(w.variant)}</p>` : ''}
           ${p ? `<div class="gprice">${eur(p)}</div>` : ''}
           ${w.shops.some(s => s.url) ? `<div class="gshops">${w.shops.filter(s => s.url).map(s => `<a class="gshop" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer"><span>${esc(s.label || host(s.url))}</span><span class="sp">${s.price != null ? eur(s.price) + ' ' : ''}${ic('ext')}</span></a>`).join('')}</div>` : ''}
+          ${mode === 'viewer' ? `<button class="btn small ghost got-btn" data-a="got" data-k="${esc(gk)}" aria-pressed="${isGot}">${ic('check')}${isGot ? 'Doch nicht besorgt' : 'Schon besorgt'}</button>` : ''}
         </div>
       </article>`;
     }).join('')}</div><p class="gfoot">Stand ${fmtLong(V.u)}. Tipp: Sprecht euch kurz ab, damit nichts doppelt verschenkt wird.</p>`
@@ -452,6 +472,7 @@ function renderViewer() {
   return `${runhead('', owner, V.u)}<main class="wrap">
     ${hero(['Geschenkideen', 'Preise', 'Links'], '', lede, owner)}
     ${updateNote()}${prev}
+    ${mode === 'viewer' && items.length ? '<p class="got-hint muted">Tipp: Mit „Schon besorgt“ merkst du dir auf diesem Gerät, was du schon hast. Das sieht niemand sonst.</p>' : ''}
     ${sec(1, 'ideen', 'Geschenkideen', grid)}
   </main>`;
 }
@@ -965,11 +986,13 @@ document.addEventListener('click', e => {
     case 'settings': openSettings(); break;
     case 'close': closeDialog(); break;
     case 'retry': retried = false; dirty = true; setStatus('pending'); render(); scheduleSave(100); break;
-    case 'tab': ui.tab = t.dataset.v; saveUi(); render(); break;
+    case 'tab': ui.tab = t.dataset.v; saveUi(); animNext = true; render(); break;
     case 'filter': ui.filter = t.dataset.v; saveUi(); render(); break;
     case 'gift': { const w = findWish(id); if (w) { w.gift = !w.gift; commit(); toast(w.gift ? 'Für andere sichtbar' : 'Nur noch für dich sichtbar'); } break; }
     case 'preview-on': sharePreview(); break;
-    case 'preview-off': preview = false; viewData = null; render(); break;
+    case 'welcome-x': ls.set('wl-welcome', '1'); render(); break;
+    case 'got': toggleGot(t.dataset.k); break;
+    case 'preview-off': preview = false; viewData = null; animNext = true; render(); break;
     case 'share-link': if (shareUrl) shareLink(); break;
     case 'reload-update': applyUpdate(); break;
     case 'examples-remove': state.wishes = state.wishes.filter(w => !w.example); closeDialog(); commit(); toast('Beispiele entfernt'); break;
@@ -1033,6 +1056,7 @@ document.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'f-want') $('#o-want').textContent = t.value;
   else if (t.id === 'f-need') $('#o-need').textContent = t.value;
+  else if (t.id === 'f-q') { query = t.value; render(); const s = $('#f-q'); if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); } }
   else if (t.id === 'mood') { state.mood = +t.value; const m = $('#mood-t'); if (m) m.textContent = moodText() + ' Die Reihenfolge passt sich an.'; }
 });
 document.addEventListener('change', e => {
